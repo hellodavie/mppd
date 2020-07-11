@@ -10,10 +10,13 @@ parser.add_argument("-o", "--out", dest="output",
                     help="write output to FILE", metavar="FILE",
                     default="cellular.s")
 parser.add_argument("-V", "--verbose", type=int, nargs='?', const=1, help="logging level from 1 to 2, defaults if no number is supplied")
+
 parser.add_argument("-p", "--prettify", action="store_true")
-parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and associated registers")
+parser.add_argument("-P", "--prettify-only", action="store_true", dest="prettify_only")
 parser.add_argument("-r", "--replace", action="store_true", help="in-place prettifier, replace input file")
-parser.add_argument("--locals", action="store_true", help="output identifiers and associated registers into function comments")
+
+parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and associated registers")
+parser.add_argument("--locals", action="store_true", help="show identifiers and associated registers")
 parser.add_argument("--docs", action="store_true", help="include auto-generated documentation")
 args = parser.parse_args()
 if args.verbose: print('Args', args)
@@ -121,10 +124,16 @@ def prettify():
         print("{} lines were changed.".format(linesChanged))
         print("Output written to '{}'".format(outfileName))
         if args.replace: print("Backup written to '{}'".format(backupfile))
+        return outfileName
 
 if args.prettify:
-    prettify()
-    exit()
+    outfileName = prettify()
+    if args.prettify_only: 
+        exit()
+    elif outfileName:
+        args.file = outfileName
+    else:
+        exit(1)
 
 
 def fix_instruction_part_spacing(i):
@@ -185,6 +194,11 @@ def create_identifiers_mapping(text):
 
     for matchNum, match in enumerate(matches, start=1):
         identifier = match.group()
+        matchStart = match.start()
+        newLineStartPos = match.string[:matchStart].rfind('\n')
+        if newLineStartPos > 0:
+            if '#' in match.string[newLineStartPos:matchStart]:
+                continue
 
         if '.' in identifier:
             identifierTrim, _, flag = identifier.partition('.')
@@ -273,7 +287,7 @@ for functionName in function_names:
         print(CGREY + 'Sorted      ' + CEND + ' '.join(sorted(identifiers.values())))
         print('')
 
-    if args.locals:
+    if args.locals or args.docs:
         VARS_HEADING_INDENT = 12
         LOCALS_HEADING = 'Locals:'
         LOCALS_BULLET = '- '
