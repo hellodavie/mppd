@@ -276,7 +276,6 @@ if args.verbose: print(functions.keys())
 
 for functionName in function_names:
     f_text = functions[functionName]
-# for f_text in functions.values():
     f_text = f_text[0]
     identifiers, identifiersFlags = create_identifiers_mapping(f_text)
 
@@ -321,15 +320,27 @@ for functionName in function_names:
         comment += ', '.join(sorted(usedIdents))
         comment += '\n'
 
-        comment += '\n'
+        # Clobbers
+        if 1 or args.clobbers:
+            CLOBBERS_HEADING = 'Clobbers:'
+            clobbers = "# clobbers: $a0,$a1"
+
+            clobberStart = clobbers.find('$')
+            if clobberStart > 0:
+                clobbers = clobbers[clobberStart:]
+                comment += format(CLOBBERS_HEADING, headingPrefix)
+                comment += ', '.join(sorted([x.strip() for x in clobbers.split(',')]))
+                comment += '\n'
 
         # Locals
-        comment += LOCALS_HEADING + '\n'
-        localsFormat = '{:>' + str(FUNCTION_DOCS_INDENT) + "}"
-        localsFormat += "'{}' in {}"
-        for key, value in sorted(identifiers.items(), key=operator.itemgetter(1)):
-            comment += localsFormat.format(LOCALS_BULLET, key[1:], value)
+        if identifiers:
             comment += '\n'
+            comment += LOCALS_HEADING + '\n'
+            localsFormat = '{:>' + str(FUNCTION_DOCS_INDENT) + "}"
+            localsFormat += "'{}' in {}"
+            for key, value in sorted(identifiers.items(), key=operator.itemgetter(1)):
+                comment += localsFormat.format(LOCALS_BULLET, key[1:], value)
+                comment += '\n'
 
         print(comment)
 
@@ -338,7 +349,7 @@ for functionName in function_names:
     f_text = perform_replacements(f_text, identifiers)
     if comment and args.docs:
         for cLine in comment.splitlines():
-            result_text += '# ' + cLine + '\n'
+            result_text += ('# ' if len(cLine) else '') + cLine + '\n'
     result_text += f_text
 
 # text = perform_replacements(text, identifiers)
