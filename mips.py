@@ -126,7 +126,7 @@ def prettify():
         if args.replace: print("Backup written to '{}'".format(backupfile))
         return outfileName
 
-if args.prettify:
+if args.prettify or args.prettify_only:
     outfileName = prettify()
     if args.prettify_only: 
         exit()
