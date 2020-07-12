@@ -19,6 +19,7 @@ parser.add_argument("-f", "--add-function", action="append", dest="extra_functio
 
 parser.add_argument("-s", "--structure", action="store_true", help="show label structures of functions")
 parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and associated registers")
+parser.add_argument("-c", "--clobbers", action="store_true", help="show clobbered registers")
 parser.add_argument("-l", "--locals", action="store_true", help="show identifiers and associated registers")
 parser.add_argument("-d", "--docs", action="store_true", help="include auto-generated documentation")
 args = parser.parse_args()
@@ -320,15 +321,14 @@ for functionName in function_names:
         headingPrefix = '<' + str(VARS_HEADING_INDENT)
 
         # Frame
-        savedIdents = ["$s" + str(i) for i in range(10)]
-        savedIdents = [x for x in savedIdents if (x in identifiers.values() or x in f_text)]
+        allSavedIdents = ["$s" + str(i) for i in range(10)]
+        savedIdents = [x for x in allSavedIdents if (x in identifiers.values() or x in f_text)]
 
         frameIdents = savedIdents[:]
         frameIdents.extend(x for x in FRAME_REGISTERS if (x in identifiers.values() or x in f_text))
         comment += format('Frame: ', headingPrefix)
         comment += ', '.join(sorted(frameIdents))
         comment += '\n'
-        frameIdents = None
 
         # Uses
         usedIdents = ["$t" + str(i) for i in range(10)]
@@ -341,16 +341,14 @@ for functionName in function_names:
         comment += '\n'
 
         # Clobbers
-        if 1 or args.clobbers:
+        if args.clobbers:
             CLOBBERS_HEADING = 'Clobbers:'
-            clobbers = "# clobbers: $a0,$a1"
 
-            clobberStart = clobbers.find('$')
-            if clobberStart > 0:
-                clobbers = clobbers[clobberStart:]
-                comment += format(CLOBBERS_HEADING, headingPrefix)
-                comment += ', '.join(sorted([x.strip() for x in clobbers.split(',')]))
-                comment += '\n'
+            clobbers = set(usedIdents).difference(frameIdents, allSavedIdents)
+            
+            comment += format(CLOBBERS_HEADING, headingPrefix)
+            comment += ', '.join(sorted(clobbers))
+            comment += '\n'
 
         # Locals
         if identifiers:
@@ -361,6 +359,7 @@ for functionName in function_names:
             for key, value in sorted(identifiers.items(), key=operator.itemgetter(1)):
                 comment += localsFormat.format(LOCALS_BULLET, key[1:], value)
                 comment += '\n'
+
     if args.structure or args.docs:
         # Structure
         found_start = False
