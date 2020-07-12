@@ -385,13 +385,17 @@ for functionName in function_names:
     for l in comment.split("\n"):
         max_length = max_length if len(l) < max_length else len(l)
 
-    comment = "#" * (max_length + 2) + "\n" + functionName + "\n\n" + comment
-
     f_text = perform_replacements(f_text, identifiersFlags)
     f_text = perform_replacements(f_text, identifiers)
-    if comment and args.docs:
+
+    if args.docs:
+        # Comment header
+        result_text += "#" * (max_length + 4) + "\n"
+        comment = functionName + "\n\n" + comment
+
         for cLine in comment.splitlines():
             result_text += ('# ' if len(cLine) else '') + cLine + '\n'
+    
     result_text += f_text
 
 # text = perform_replacements(text, identifiers)
