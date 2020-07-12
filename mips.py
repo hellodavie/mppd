@@ -15,10 +15,12 @@ parser.add_argument("-p", "--prettify", action="store_true")
 parser.add_argument("-P", "--prettify-only", action="store_true", dest="prettify_only")
 parser.add_argument("-r", "--replace", action="store_true", help="in-place prettifier, replace input file")
 
+parser.add_argument("-f", "--add-function", action="append", dest="extra_functions", help="append function to functions list")
+
 parser.add_argument("-s", "--structure", action="store_true", help="show label structures of functions")
 parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and associated registers")
-parser.add_argument("--locals", action="store_true", help="show identifiers and associated registers")
-parser.add_argument("--docs", action="store_true", help="include auto-generated documentation")
+parser.add_argument("-l", "--locals", action="store_true", help="show identifiers and associated registers")
+parser.add_argument("-d", "--docs", action="store_true", help="include auto-generated documentation")
 args = parser.parse_args()
 if args.verbose: print('Args', args)
 
@@ -43,6 +45,7 @@ def tabs(l, maximum):
     return ('\t' * max(1, maximum - l // 4))
 
 def prettify():
+    LOG_PRETTIFY_PREFIX = CBLUE + '[PRETTIFY]' + CEND
     if args.replace:
         backupfile = args.file + '.bak'
         copy2(args.file, backupfile)
@@ -122,9 +125,11 @@ def prettify():
             lineNum += 1
 
         outfile.close()
+        print(LOG_PRETTIFY_PREFIX)
         print("{} lines were changed.".format(linesChanged))
         print("Output written to '{}'".format(outfileName))
         if args.replace: print("Backup written to '{}'".format(backupfile))
+        print('')
         return outfileName
 
 if args.prettify or args.prettify_only:
@@ -243,18 +248,31 @@ def extract_labels(text):
 available_registers = ["$t{}".format(i) for i in range(10)]
 # available_registers.extend("$s{}".format(i) for i in range(10))
 
-labels = []
-
-# Function names in order
-# function_names = ["main", "get_param", "run_generation", "print_generation"]
-function_names = ["main", "run_generation", "print_generation"]
-functions = dict(zip(function_names, [[] for x in range(len(function_names))]))
-
+# Open file
 text = open(args.file, "r").read()
 lines = text.split("\n")
 
+# Read all labels
 labels = extract_labels(text)
-# print(labels)
+if args.verbose: print(labels)
+
+# Default function names
+function_names_set = {"main", "run_generation", "print_generation"}
+
+# Add extra functions from arguments
+if args.extra_functions:
+    function_names_set.update(args.extra_functions)
+
+# Get function names in order
+function_names = []
+for label in labels:
+    label = label[:-1]
+    if label in function_names_set:
+        function_names.append(label)
+
+if args.verbose: print(function_names)
+
+functions = dict(zip(function_names, [[] for x in range(len(function_names))]))
 
 functions_found = 0
 current_function = None
@@ -277,13 +295,13 @@ result_text = ""
 if args.verbose: print(functions.keys())
 
 for functionName in function_names:
-    print(functionName)
+    print(CGREEN + functionName + CEND)
     f_text = functions[functionName]
     f_text = f_text[0]
     identifiers, identifiersFlags = create_identifiers_mapping(f_text)
+    comment = ""
 
     if args.identifiers:
-        print(CGREEN + functionName + CEND)
         print(CGREY + 'Identifiers ' + CEND + ' '.join(identifiers.keys()))
         print(CGREY + 'Registers   ' + CEND + ' '.join(identifiers.values()))
         print(CGREY + 'Sorted      ' + CEND + ' '.join(sorted(identifiers.values())))
@@ -300,9 +318,6 @@ for functionName in function_names:
         FRAME_REGISTERS = ('$' + x for x in FRAME_REGISTERS)
 
         headingPrefix = '<' + str(VARS_HEADING_INDENT)
-        comment = ""
-
-        print(CGREEN + functionName + CEND)
 
         # Frame
         savedIdents = ["$s" + str(i) for i in range(10)]
