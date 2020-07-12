@@ -15,6 +15,7 @@ parser.add_argument("-p", "--prettify", action="store_true")
 parser.add_argument("-P", "--prettify-only", action="store_true", dest="prettify_only")
 parser.add_argument("-r", "--replace", action="store_true", help="in-place prettifier, replace input file")
 
+parser.add_argument("-s", "--structure", action="store_true", help="show label structures of functions")
 parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and associated registers")
 parser.add_argument("--locals", action="store_true", help="show identifiers and associated registers")
 parser.add_argument("--docs", action="store_true", help="include auto-generated documentation")
@@ -23,7 +24,7 @@ if args.verbose: print('Args', args)
 
 identifier_regex = r"%\w+"
 identifier_arg_regex = r"%\w+(\.\w+)?"
-labels_regex = r"\w*:"
+labels_regex = r"^\w*:"
 
 CEND    = '\33[0m'
 CBLACK  = '\33[30m'
@@ -245,7 +246,8 @@ available_registers = ["$t{}".format(i) for i in range(10)]
 labels = []
 
 # Function names in order
-function_names = ["main", "get_param", "run_generation", "print_generation"]
+# function_names = ["main", "get_param", "run_generation", "print_generation"]
+function_names = ["main", "run_generation", "print_generation"]
 functions = dict(zip(function_names, [[] for x in range(len(function_names))]))
 
 text = open(args.file, "r").read()
@@ -275,6 +277,7 @@ result_text = ""
 if args.verbose: print(functions.keys())
 
 for functionName in function_names:
+    print(functionName)
     f_text = functions[functionName]
     f_text = f_text[0]
     identifiers, identifiersFlags = create_identifiers_mapping(f_text)
@@ -290,6 +293,8 @@ for functionName in function_names:
         VARS_HEADING_INDENT = 12
         LOCALS_HEADING = 'Locals:'
         LOCALS_BULLET = '- '
+        STRUCTURE_HEADING = 'Structure:'
+        STRUCTURE_BULLET = '- '
         FUNCTION_DOCS_INDENT = 8
         FRAME_REGISTERS = ('fp', 'ra', 'sp')
         FRAME_REGISTERS = ('$' + x for x in FRAME_REGISTERS)
@@ -341,9 +346,31 @@ for functionName in function_names:
             for key, value in sorted(identifiers.items(), key=operator.itemgetter(1)):
                 comment += localsFormat.format(LOCALS_BULLET, key[1:], value)
                 comment += '\n'
+    if args.structure or args.docs:
+        # Structure
+        found_start = False
+        structureFormat = '{:>' + str(FUNCTION_DOCS_INDENT) + "}"
+        structureFormat += "{}"
+        comment += '\n'
+        comment += STRUCTURE_HEADING + '\n'
+        for label in labels:
+            label = label[:-1]
+            if found_start:
+                if label in function_names:
+                    break
+                else:
+                    comment += structureFormat.format(STRUCTURE_BULLET, label)
+                    comment += '\n'
+            elif label == functionName:
+                found_start = True
 
         print(comment)
 
+    max_length = -1
+    for l in comment.split("\n"):
+        max_length = max_length if len(l) < max_length else len(l)
+
+    comment = "#" * (max_length + 2) + "\n" + functionName + "\n\n" + comment
 
     f_text = perform_replacements(f_text, identifiersFlags)
     f_text = perform_replacements(f_text, identifiers)
