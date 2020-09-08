@@ -2,13 +2,15 @@ from argparse import ArgumentParser
 import re
 from shutil import copy2
 import operator
+from sys import stderr
 
 parser = ArgumentParser()
-parser.add_argument("file", help="input readable assembly code from FILE", nargs='?')
+parser.add_argument("file", help="input assembly code from FILE", nargs='?')
 parser.add_argument("-o", "--out", dest="output",
-                    help="write output to OUTPUT", metavar="OUTPUT")
+                    help="write output to OUT", metavar="OUT")
 parser.add_argument("-V", "--verbose", type=int, nargs='?', const=1,
-                    help="logging level from 1 to 2, defaults if no number is supplied")
+                    help="logging level from 1 to 2, defaults to 1 if no LEVEL is supplied",
+                    metavar="LEVEL")
 
 parser.add_argument("-p", "--prettify", action="store_true", help="reformat assembly code")
 parser.add_argument("-P", "--prettify-only", action="store_true", dest="prettify_only")
@@ -16,12 +18,12 @@ parser.add_argument("-r", "--replace", action="store_true", help="in-place prett
 
 parser.add_argument("-f", "--add-function", action="append", dest="extra_functions",
                     help="append function to list of functions to process", metavar="FUNCTION_NAME")
-parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and associated registers")
+
+parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and registers lists")
+parser.add_argument("-l", "--locals", action="store_true", help="show identifiers and associated registers")
 
 parser.add_argument("-d", "--docs", action="store_true", help="write auto-generated documentation to output file")
-parser.add_argument("-c", "--clobbers", action="store_true", help="include clobbered registers")
-parser.add_argument("-s", "--structure", action="store_true", help="include label structures of functions")
-parser.add_argument("-l", "--locals", action="store_true", help="include identifiers and associated registers")
+parser.add_argument("-s", "--structure", action="store_true", help="include label structures for functions")
 
 args = parser.parse_args()
 if args.verbose: print('Args', args)
@@ -51,8 +53,8 @@ def append_filename_suffix(filename, suffix):
     return path_parts[0] + suffix + path_parts[1] + path_parts[2]
 
 
-def align_tabs(l, maximum):
-    return '\t' * max(1, maximum - l // 4)
+def align_tabs(length, maximum):
+    return '\t' * max(1, maximum - length // 4)
 
 
 def prettify():
@@ -70,6 +72,8 @@ def prettify():
     with open(path_backup, 'r') as file_input:
         outfile = open(path_out, 'w')
         lines_changed = 0
+
+        print(LOG_PRETTIFY_PREFIX)
 
         for line_num, line in enumerate(file_input, start=1):
             line = line.rstrip()
@@ -126,19 +130,24 @@ def prettify():
             outfile.write(line_out + '\n')
 
         outfile.close()
-        print(LOG_PRETTIFY_PREFIX)
-        print("{} lines were changed.".format(lines_changed))
-        print("Output written to '{}'".format(path_out))
+        print("{} lines were reformatted.".format(lines_changed))
+        print("Prettified output written to '{}'".format(path_out))
         if args.replace:
             print("Backup written to '{}'".format(path_backup))
-        print('')
+        print()
         return path_out
 
+
+# Normalise arguments
+if not args.file:
+    parser.print_usage(stderr)
+    print(CRED + 'error:' + CEND + ' no input file specified', file=stderr)
+    exit(1)
 
 if not args.output:
     args.output = append_filename_suffix(args.file, '.out')
 
-
+# Run prettify
 if args.prettify or args.prettify_only:
     outfileName = prettify()
     if args.prettify_only:
@@ -216,10 +225,10 @@ def create_identifiers_mapping(text):
                 continue
 
         if '.' in identifier:
-            identifierTrim, _, flag = identifier.partition('.')
+            identifierTrim, _, flag = identifier.rpartition('.')
             identifiersFlags[identifier] = identifierTrim
             identifier = identifierTrim
-            print('Identifier {} has flag {}'.format(identifier, flag))
+            print("Identifier '{}' has flag '{}'".format(identifier, flag))
 
             if identifier in identifiers:
                 print(CRED + 'Identifier {} declared before flag {}'.format(identifier, flag) + CEND)
@@ -317,15 +326,14 @@ for functionName in function_names:
         print(CGREY + 'Identifiers ' + CEND + ' '.join(identifiers.keys()))
         print(CGREY + 'Registers   ' + CEND + ' '.join(identifiers.values()))
         print(CGREY + 'Sorted      ' + CEND + ' '.join(sorted(identifiers.values())))
-        print('')
+        print()
+
+    FUNCTION_DOCS_INDENT = 8
 
     if args.locals or args.docs:
         VARS_HEADING_INDENT = 12
         LOCALS_HEADING = 'Locals:'
         LOCALS_BULLET = '- '
-        STRUCTURE_HEADING = 'Structure:'
-        STRUCTURE_BULLET = '- '
-        FUNCTION_DOCS_INDENT = 8
         FRAME_REGISTERS = ('fp', 'ra', 'sp')
         FRAME_REGISTERS = ('$' + x for x in FRAME_REGISTERS)
 
@@ -352,14 +360,11 @@ for functionName in function_names:
         comment += '\n'
 
         # Clobbers
-        if args.clobbers:
-            CLOBBERS_HEADING = 'Clobbers:'
-
-            clobbers = set(usedIdents).difference(frameIdents, allSavedIdents)
-
-            comment += format(CLOBBERS_HEADING, headingPrefix)
-            comment += ', '.join(sorted(clobbers))
-            comment += '\n'
+        CLOBBERS_HEADING = 'Clobbers:'
+        clobbers = set(usedIdents).difference(frameIdents, allSavedIdents)
+        comment += format(CLOBBERS_HEADING, headingPrefix)
+        comment += ', '.join(sorted(clobbers))
+        comment += '\n'
 
         # Locals
         if identifiers:
@@ -371,8 +376,11 @@ for functionName in function_names:
                 comment += localsFormat.format(LOCALS_BULLET, key[1:], value)
                 comment += '\n'
 
-    if args.structure or args.docs:
+    if args.structure:
         # Structure
+        STRUCTURE_HEADING = 'Structure:'
+        STRUCTURE_BULLET = '- '
+
         found_start = False
         structureFormat = '{:>' + str(FUNCTION_DOCS_INDENT) + "}"
         structureFormat += "{}"
@@ -392,15 +400,15 @@ for functionName in function_names:
     if comment:
         print(comment)
 
-    max_length = -1
-    for l in comment.split("\n"):
-        max_length = max_length if len(l) < max_length else len(l)
-
     f_text = perform_replacements(f_text, identifiersFlags)
     f_text = perform_replacements(f_text, identifiers)
 
     if args.docs:
+        # Write documentation to output
         # Comment header
+        max_length = -1
+        for l in comment.split("\n"):
+            max_length = max_length if len(l) < max_length else len(l)
         result_text += "#" * (max_length + 4) + "\n"
         comment = functionName + "\n\n" + comment
 
@@ -415,3 +423,4 @@ for functionName in function_names:
 # print(r)
 with open(args.output, "w") as f:
     f.write(fix_comment_spacing(pre_text + result_text))
+print("\nOutput written to '{}'".format(args.output))

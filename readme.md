@@ -1,8 +1,9 @@
 # MIPS Prettifier Preprocessor and Documenter
 
+## tl;dr
 Using all available features,
 ```shell
-python mips.py --prettify --replace --identifiers --locals --docs YOUR_INPUT_FILE.s
+$ python mips.py input.s -o output.s --prettify -i -s -l -d
 ```
 
 ## Prettify
@@ -11,6 +12,10 @@ Instruction parameters and comments will be realigned throughout your code.
 Tabs are used for both indentation and alignment in the prettified/intermediate output,
 which is aligned for editing in Visual Studio Code.
 Spaces are used in the final/preprocessed code, so that your code looks consistent across different editors.
+
+The output will be suffixed with `.pretty`. When the `--replace` parameter is specified,
+a backup of your file will be produced and the prettified output replaces your input file.
+A summary of the changes will also be printed to stdout. 
 
 ## Preprocessor
 All code written below a function label, until either the next function label or the end of the file,
