@@ -5,8 +5,6 @@ import operator
 from sys import stderr
 from textwrap import dedent
 
-import os
-print(os.environ)
 
 __version__ = '1.1.0'
 __description__ = 'A formatter and preprocessor for MIPS assembly.'
@@ -93,14 +91,14 @@ def log_error(err):
 
 
 # Normalise arguments
+if args.version:
+    print(__version__)
+    exit()
+
 print(__description__ + '\n' + __copyright__ + '\n')
 
 if args.verbose:
     print('Args', args)
-
-if args.version:
-    print(__version__)
-    exit()
 
 if not args.file:
     parser.print_usage(stderr)
