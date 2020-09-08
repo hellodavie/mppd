@@ -1,7 +1,4 @@
 [run]
-include =
-    test/*
-    ../mips.py
-    *mips.py
 omit =
     venv/*
+source = .

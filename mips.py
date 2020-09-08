@@ -5,7 +5,12 @@ import operator
 from sys import stderr
 from textwrap import dedent
 
+import os
+print(os.environ)
+
 __version__ = '1.1.0'
+__description__ = 'A formatter and preprocessor for MIPS assembly.'
+__copyright__ = 'Copyright (c) 2020 David Wu and Eric Holmstrom'
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -17,7 +22,7 @@ parser = argparse.ArgumentParser(
       $ mppd code.s --function min --function max
       $ mppd code.s -p -r -l -d -s
     '''),
-    description='A formatter and preprocessor for MIPS assembly.'
+    description=__description__
 )
 
 parser.add_argument("file", help="Input filename of assembly code", nargs='?')
@@ -28,6 +33,7 @@ parser.add_argument("-v", "--version", action="store_true", help=argparse.SUPPRE
 parser.add_argument("-V", "--verbose", type=int, nargs='?', const=1,
                     help="Logging level 1-2, defaults to 1 if no LEVEL supplied",
                     metavar="LEVEL")
+# parser.add_argument("-q", "--quiet", action="store_true", help=argparse.SUPPRESS)
 
 parser.add_argument("-p", "--prettify", action="store_true",
                     help="Reformat assembly code")
@@ -52,7 +58,6 @@ parser.add_argument("-s", "--structure", action="store_true",
                     help="Include label structures in documentation")
 
 args = parser.parse_args()
-if args.verbose: print('Args', args)
 
 identifier_regex = r"%\w+"
 identifier_arg_regex = r"%\w+(\.\w+)?"
@@ -83,14 +88,23 @@ def align_tabs(length, maximum):
     return '\t' * max(1, maximum - length // 4)
 
 
+def log_error(err):
+    print(CRED + 'error:' + CEND + ' ' + err, file=stderr)
+
+
 # Normalise arguments
+print(__description__ + '\n' + __copyright__ + '\n')
+
+if args.verbose:
+    print('Args', args)
+
 if args.version:
     print(__version__)
     exit()
 
 if not args.file:
     parser.print_usage(stderr)
-    print(CRED + 'error:' + CEND + ' no input file specified', file=stderr)
+    log_error('no input file specified')
     exit(1)
 
 if not args.output:
@@ -157,8 +171,7 @@ def prettify():
     file_input = open(path_backup, 'r')
     outfile = open(path_out, 'w')
     lines_changed = 0
-    if args.space:
-        out_buffer = ''
+    out_buffer = ''
 
     print(LOG_PRETTIFY_PREFIX)
 
@@ -174,28 +187,28 @@ def prettify():
         if (is_indented and stripped and stripped[0] != '#' and
                 (',' in line or any(stripped.startswith(x) for x in include_instructions))):
 
-            splitted = stripped.split()
+            split = stripped.split()
             if args.verbose:
-                print(splitted)
+                print('split', split)
             line_out = "\t"
 
-            instruction_len = len(splitted[0])
-            if (1 < instruction_len <= 4) or splitted[0] in include_instructions:
-                line_out += splitted[0] + align_tabs(instruction_len, NUM_TABS_AFTER_INSTRUCTION)
+            line_out += split[0]
+            instruction_len = len(split[0])
+            # Add whitespace after instruction code
+            if (1 < instruction_len <= 4) or split[0] in include_instructions:
+                line_out += align_tabs(instruction_len, NUM_TABS_AFTER_INSTRUCTION)
 
-            length = len(splitted)
+            # Add arguments
+            length = len(split)
             len_args = 0
             for i in range(1, length):
-                if splitted[i] == '#':
-                    break
-
                 # Insert space after commas
-                comma_pos = splitted[i].find(',')
-                if comma_pos < len(splitted[i]) - 1:
-                    splitted[i] = ', '.join(splitted[i].split(',')).rstrip()
+                comma_pos = split[i].find(',')
+                if 0 <= comma_pos < len(split[i]) - 1:
+                    split[i] = ', '.join(split[i].split(',')).rstrip()
 
-                line_out += splitted[i]
-                len_args += len(splitted[i])
+                line_out += split[i]
+                len_args += len(split[i])
 
                 if i != length - 1:
                     line_out += ' '
@@ -206,7 +219,6 @@ def prettify():
                 line_out += align_tabs(len_args, NUM_TABS_BEFORE_COMMENT)
                 line_out += line_parts[1] + ' ' + line_parts[2].lstrip()
 
-            if args.verbose: print(line_out)
             if args.verbose or line_out != line:
                 print(CGREY + "Line " + str(line_num) + ": " + CEND + line)
                 print(CVIOLET + "Line " + str(line_num) + ": " + CEND + line_out)
@@ -260,25 +272,25 @@ def create_identifiers_mapping(text):
 
     for matchNum, match in enumerate(matches, start=1):
         identifier = match.group()
-        matchStart = match.start()
-        newLineStartPos = match.string[:matchStart].rfind('\n')
-        if newLineStartPos > 0:
-            if '#' in match.string[newLineStartPos:matchStart]:
+        match_start = match.start()
+        new_line_start_pos = match.string[:match_start].rfind('\n')
+        if new_line_start_pos > 0:
+            if '#' in match.string[new_line_start_pos:match_start]:
                 continue
 
         if '.' in identifier:
-            identifierTrim, _, flag = identifier.rpartition('.')
-            identifiersFlags[identifier] = identifierTrim
-            identifier = identifierTrim
+            identifier_trim, _, flag = identifier.rpartition('.')
+            identifiersFlags[identifier] = identifier_trim
+            identifier = identifier_trim
             print("Identifier '{}' has flag '{}'".format(identifier, flag))
 
             if identifier in identifiers:
                 print(CRED + 'Identifier {} declared before flag {}'.format(identifier, flag) + CEND)
             else:
-                identIndex = first_startswith(available_registers, '$s')
-                if identIndex != -1:
-                    identifiers[identifier] = available_registers[identIndex]
-                    available_registers.pop(identIndex)
+                ident_index = first_startswith(available_registers, '$s')
+                if ident_index != -1:
+                    identifiers[identifier] = available_registers[ident_index]
+                    available_registers.pop(ident_index)
                 else:
                     print(CRED + 'Identifier {} exceeded available $s registers'.format(identifier) + CEND)
             continue
@@ -291,7 +303,7 @@ def create_identifiers_mapping(text):
 
     if args.verbose: print(len(idents), idents)
 
-    return (identifiers, identifiersFlags)
+    return identifiers, identifiersFlags
 
 
 def perform_replacements(text, identifiers):
@@ -443,6 +455,7 @@ for functionName in function_names:
     if comment:
         print(comment)
 
+    # Perform pre-processing
     f_text = perform_replacements(f_text, identifiersFlags)
     f_text = perform_replacements(f_text, identifiers)
 
