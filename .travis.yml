@@ -5,3 +5,5 @@ python:
   - "3.8"
 script:
   - coverage run -m pytest
+after_success:
+  - scripts/report-coverage.sh

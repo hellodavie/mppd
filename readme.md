@@ -1,5 +1,9 @@
 # MIPS Prettifier Preprocessor and Documenter
 
+[![Build Status](https://travis-ci.com/hellodavie/mppd.svg?branch=master)](https://travis-ci.com/hellodavie/mppd)
+
+
+
 An opinionated, but flexible, formatter and preprocessor for MIPS Assembly.
 Enforces style based on [BetterAssembly](https://wiki.jashankj.space/Scribblings/BetterAssembly/),
 which is the recommended style guide for COMP1521.
