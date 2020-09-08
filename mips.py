@@ -16,12 +16,12 @@ parser.add_argument("-r", "--replace", action="store_true", help="in-place prett
 
 parser.add_argument("-f", "--add-function", action="append", dest="extra_functions",
                     help="append function to list of functions to process", metavar="FUNCTION_NAME")
-
-parser.add_argument("-s", "--structure", action="store_true", help="show label structures of functions")
 parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and associated registers")
-parser.add_argument("-c", "--clobbers", action="store_true", help="show clobbered registers")
-parser.add_argument("-l", "--locals", action="store_true", help="show identifiers and associated registers")
+
 parser.add_argument("-d", "--docs", action="store_true", help="write auto-generated documentation to output file")
+parser.add_argument("-c", "--clobbers", action="store_true", help="include clobbered registers")
+parser.add_argument("-s", "--structure", action="store_true", help="include label structures of functions")
+parser.add_argument("-l", "--locals", action="store_true", help="include identifiers and associated registers")
 
 args = parser.parse_args()
 if args.verbose: print('Args', args)
@@ -389,6 +389,7 @@ for functionName in function_names:
             elif label == functionName:
                 found_start = True
 
+    if comment:
         print(comment)
 
     max_length = -1
