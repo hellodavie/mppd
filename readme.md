@@ -1,6 +1,8 @@
 # MIPS Prettifier Preprocessor and Documenter
 
 An opinionated, but flexible, formatter and preprocessor for MIPS Assembly.
+Enforces style based on [BetterAssembly](https://wiki.jashankj.space/Scribblings/BetterAssembly/),
+which is the recommended style guide for COMP1521.
 
 ## tl;dr
 Using all available features,
@@ -15,8 +17,7 @@ a few formatting rules are applied throughout your code,
  - instruction parameters are aligned
  - comments are aligned
 
-Tabs are used for both indentation and alignment in the prettified/intermediate output,
-which is aligned for editing in Visual Studio Code.
+Tabs are used for both indentation and alignment in the prettified/intermediate output.
 Spaces are used in the final/preprocessed code, so that your code looks consistent across different editors.
 
 The output filename will be suffixed with `.pretty`.

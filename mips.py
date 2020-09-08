@@ -35,6 +35,8 @@ parser.add_argument("-P", "--prettify-only", action="store_true", dest="prettify
                     help="Skip pre-processing")
 parser.add_argument("-r", "--replace", action="store_true",
                     help="In-place prettify, replace input file")
+parser.add_argument("-S", "--space", action="store_true",
+                    help="Uses spaces instead of tabs for prettifying")
 
 parser.add_argument("-f", "--add-function", action="append", dest="extra_functions",
                     help="Append function to list of functions to process", metavar="LABEL")
@@ -81,87 +83,6 @@ def align_tabs(length, maximum):
     return '\t' * max(1, maximum - length // 4)
 
 
-def prettify():
-    # Instructions without a comma in signature
-    include_instructions = ('jal', 'jr', 'b')
-
-    if args.replace:
-        path_backup = args.file + '.bak'
-        copy2(args.file, path_backup)
-        path_out = args.file
-    else:
-        path_backup = args.file
-        path_out = append_filename_suffix(args.file, '.pretty')
-
-    with open(path_backup, 'r') as file_input:
-        outfile = open(path_out, 'w')
-        lines_changed = 0
-
-        print(LOG_PRETTIFY_PREFIX)
-
-        for line_num, line in enumerate(file_input, start=1):
-            line = line.rstrip()
-            line_parts = line.partition('#')
-            stripped = line_parts[0].lstrip()
-
-            # If line starts with a tab or four spaces
-            is_indented: bool = line and (line[0] == '\t' or (len(line) > 4 and line[:3].isspace()))
-
-            # Handle lines with instructions
-            if (is_indented and stripped and stripped[0] != '#' and
-                    (',' in line or any(stripped.startswith(x) for x in include_instructions))):
-
-                splitted = stripped.split()
-                if args.verbose:
-                    print(splitted)
-                line_out = "\t"
-
-                instruction_len = len(splitted[0])
-                if (1 < instruction_len <= 4) or splitted[0] in include_instructions:
-                    line_out += splitted[0] + align_tabs(instruction_len, NUM_TABS_AFTER_INSTRUCTION)
-
-                length = len(splitted)
-                len_args = 0
-                for i in range(1, length):
-                    if splitted[i] == '#':
-                        break
-
-                    # Insert space after commas
-                    comma_pos = splitted[i].find(',')
-                    if comma_pos < len(splitted[i]) - 1:
-                        splitted[i] = ', '.join(splitted[i].split(',')).rstrip()
-
-                    line_out += splitted[i]
-                    len_args += len(splitted[i])
-
-                    if i != length - 1:
-                        line_out += ' '
-                        len_args += 1
-
-                # If line has comment
-                if line_parts[1]:
-                    line_out += align_tabs(len_args, NUM_TABS_BEFORE_COMMENT)
-                    line_out += line_parts[1] + ' ' + line_parts[2].lstrip()
-
-                if args.verbose: print(line_out)
-                if args.verbose or line_out != line:
-                    print(CGREY + "Line " + str(line_num) + ": " + CEND + line)
-                    print(CVIOLET + "Line " + str(line_num) + ": " + CEND + line_out)
-                    lines_changed += 1
-            else:
-                line_out = line
-
-            outfile.write(line_out + '\n')
-
-        outfile.close()
-        print("{} lines were reformatted.".format(lines_changed))
-        print("Prettified output written to '{}'".format(path_out))
-        if args.replace:
-            print("Backup written to '{}'".format(path_backup))
-        print()
-        return path_out
-
-
 # Normalise arguments
 if args.version:
     print(__version__)
@@ -174,16 +95,6 @@ if not args.file:
 
 if not args.output:
     args.output = append_filename_suffix(args.file, '.out')
-
-# Run prettify
-if args.prettify or args.prettify_only:
-    outfileName = prettify()
-    if args.prettify_only:
-        exit()
-    elif outfileName:
-        args.file = outfileName
-    else:
-        exit(1)
 
 
 def fix_instruction_part_spacing(i):
@@ -231,6 +142,109 @@ def fix_comment_spacing(text):
     return result
 
 
+def prettify():
+    # Instructions without a comma in signature
+    include_instructions = ('jal', 'jr', 'b')
+
+    if args.replace:
+        path_backup = args.file + '.bak'
+        copy2(args.file, path_backup)
+        path_out = args.file
+    else:
+        path_backup = args.file
+        path_out = append_filename_suffix(args.file, '.pretty')
+
+    file_input = open(path_backup, 'r')
+    outfile = open(path_out, 'w')
+    lines_changed = 0
+    if args.space:
+        out_buffer = ''
+
+    print(LOG_PRETTIFY_PREFIX)
+
+    for line_num, line in enumerate(file_input, start=1):
+        line = line.rstrip()
+        line_parts = line.partition('#')
+        stripped = line_parts[0].lstrip()
+
+        # If line starts with a tab or four spaces
+        is_indented: bool = line and (line[0] == '\t' or (len(line) > 4 and line[:3].isspace()))
+
+        # Handle lines with instructions
+        if (is_indented and stripped and stripped[0] != '#' and
+                (',' in line or any(stripped.startswith(x) for x in include_instructions))):
+
+            splitted = stripped.split()
+            if args.verbose:
+                print(splitted)
+            line_out = "\t"
+
+            instruction_len = len(splitted[0])
+            if (1 < instruction_len <= 4) or splitted[0] in include_instructions:
+                line_out += splitted[0] + align_tabs(instruction_len, NUM_TABS_AFTER_INSTRUCTION)
+
+            length = len(splitted)
+            len_args = 0
+            for i in range(1, length):
+                if splitted[i] == '#':
+                    break
+
+                # Insert space after commas
+                comma_pos = splitted[i].find(',')
+                if comma_pos < len(splitted[i]) - 1:
+                    splitted[i] = ', '.join(splitted[i].split(',')).rstrip()
+
+                line_out += splitted[i]
+                len_args += len(splitted[i])
+
+                if i != length - 1:
+                    line_out += ' '
+                    len_args += 1
+
+            # If line has comment
+            if line_parts[1]:
+                line_out += align_tabs(len_args, NUM_TABS_BEFORE_COMMENT)
+                line_out += line_parts[1] + ' ' + line_parts[2].lstrip()
+
+            if args.verbose: print(line_out)
+            if args.verbose or line_out != line:
+                print(CGREY + "Line " + str(line_num) + ": " + CEND + line)
+                print(CVIOLET + "Line " + str(line_num) + ": " + CEND + line_out)
+                lines_changed += 1
+        else:
+            line_out = line
+
+        if args.space:
+            out_buffer += line_out + '\n'
+        else:
+            outfile.write(line_out + '\n')
+
+    if args.space:
+        outfile.write(fix_comment_spacing(out_buffer))
+
+    outfile.close()
+    file_input.close()
+
+    print("{} lines were reformatted.".format(lines_changed))
+    print("Prettified output written to '{}'".format(path_out))
+    if args.replace:
+        print("Backup written to '{}'".format(path_backup))
+    print()
+    return path_out
+
+
+# Run prettify
+if args.prettify or args.prettify_only:
+    outfileName = prettify()
+    if args.prettify_only:
+        exit()
+    elif outfileName:
+        args.file = outfileName
+    else:
+        exit(1)
+
+
+# Preprocessor functions
 def first_startswith(strings, substring):
     return next((i for i, string in enumerate(strings) if string.startswith(substring)), -1)
 
@@ -281,7 +295,7 @@ def create_identifiers_mapping(text):
 
 
 def perform_replacements(text, identifiers):
-    for i, r in identifiers.items():
+    for i, r in sorted(identifiers.items(), key=lambda k: len(k[0]), reverse=True):
         text = text.replace(i, r)
     return text
 
