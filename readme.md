@@ -1,21 +1,28 @@
 # MIPS Prettifier Preprocessor and Documenter
 
+An opinionated, but flexible, formatter and preprocessor for MIPS Assembly.
+
 ## tl;dr
 Using all available features,
 ```shell
-$ python mips.py input.s -o output.s --prettify -i -s -l -d
+$ python3 mips.py input.s -o output.s --prettify -i -s -l -d
 ```
 
 ## Prettify
-Whitespace is normalised when using the prettify parameter.
-Instruction parameters and comments will be realigned throughout your code.
+When using the prettify parameter,
+a few formatting rules are applied throughout your code,
+ - whitespace is normalised
+ - instruction parameters are aligned
+ - comments are aligned
+
 Tabs are used for both indentation and alignment in the prettified/intermediate output,
 which is aligned for editing in Visual Studio Code.
 Spaces are used in the final/preprocessed code, so that your code looks consistent across different editors.
 
-The output will be suffixed with `.pretty`. When the `--replace` parameter is specified,
-a backup of your file will be produced and the prettified output replaces your input file.
-A summary of the changes will also be printed to stdout. 
+The output filename will be suffixed with `.pretty`.
+When the `--replace` parameter is specified,
+a backup of your file will be produced and the output replaces your input file.
+A summary of the changes will also be printed to stdout.
 
 ## Preprocessor
 All code written below a function label, until either the next function label or the end of the file,
@@ -68,7 +75,8 @@ Notice that one of the variables has a flag which forces the usage of a saved re
 rather than a temporary register.
 
 The `--identifiers` parameter will output preprocessor information for each function processed.
-A list of variables and their respective registers will be output for your reference.
+A list of variables and their respective registers will be output to stdout for your reference.
+This flag has no impact on the contents of the files output.
 
 
 ## Documentation Generation
@@ -83,7 +91,6 @@ you need to save your registers on the stack.
 It would be nice to know which variables are being clobbered,
 so that you can store them in your function prologues.
 This function documentation will be output for the previously used example function
-with the `--clobbers` parameter,
 ```asm
 #########################
 # count
@@ -95,14 +102,14 @@ with the `--clobbers` parameter,
 
 ### Locals
 Assembly would be so much easier to read if you knew what variables each register corresponds to.
-Using the `--locals` will include the following comment in the output
+Using the `--locals` argument will include the following comment in the output
 ```asm
 # Locals:
 #       - 'max' in $s0
 #       - 'i' in $t0
 ```
 This is especially useful if you want to debug the preprocessor,
-and want to know exactly what it's doing with your beloved placeholder variables. 
+and need to know exactly what it's doing with your beloved placeholder variables. 
 
 ### Structure
 The flow of your program can be easily identified when you include structure documentation.

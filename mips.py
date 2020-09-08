@@ -1,29 +1,53 @@
-from argparse import ArgumentParser
+import argparse
 import re
 from shutil import copy2
 import operator
 from sys import stderr
+from textwrap import dedent
 
-parser = ArgumentParser()
-parser.add_argument("file", help="input assembly code from FILE", nargs='?')
+__version__ = '1.1.0'
+
+parser = argparse.ArgumentParser(
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog=dedent('''\
+    examples:
+      $ mppd code.s
+      $ mppd code.s -l
+      $ mppd code.s --prettify --replace
+      $ mppd code.s --function min --function max
+      $ mppd code.s -p -r -l -d -s
+    '''),
+    description='A formatter and preprocessor for MIPS assembly.'
+)
+
+parser.add_argument("file", help="Input filename of assembly code", nargs='?')
 parser.add_argument("-o", "--out", dest="output",
-                    help="write output to OUT", metavar="OUT")
+                    help="Output filename", metavar="OUT")
+
+parser.add_argument("-v", "--version", action="store_true", help=argparse.SUPPRESS)
 parser.add_argument("-V", "--verbose", type=int, nargs='?', const=1,
-                    help="logging level from 1 to 2, defaults to 1 if no LEVEL is supplied",
+                    help="Logging level 1-2, defaults to 1 if no LEVEL supplied",
                     metavar="LEVEL")
 
-parser.add_argument("-p", "--prettify", action="store_true", help="reformat assembly code")
-parser.add_argument("-P", "--prettify-only", action="store_true", dest="prettify_only")
-parser.add_argument("-r", "--replace", action="store_true", help="in-place prettify, replace input file")
+parser.add_argument("-p", "--prettify", action="store_true",
+                    help="Reformat assembly code")
+parser.add_argument("-P", "--prettify-only", action="store_true", dest="prettify_only",
+                    help="Skip pre-processing")
+parser.add_argument("-r", "--replace", action="store_true",
+                    help="In-place prettify, replace input file")
 
 parser.add_argument("-f", "--add-function", action="append", dest="extra_functions",
-                    help="append function to list of functions to process", metavar="FUNCTION_NAME")
+                    help="Append function to list of functions to process", metavar="LABEL")
 
-parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and registers lists")
-parser.add_argument("-l", "--locals", action="store_true", help="show identifiers and associated registers")
+parser.add_argument("-i", "--identifiers", action="store_true",
+                    help="Show identifiers and registers lists")
+parser.add_argument("-l", "--locals", action="store_true",
+                    help="Show identifiers and associated registers")
 
-parser.add_argument("-d", "--docs", action="store_true", help="write auto-generated documentation to output file")
-parser.add_argument("-s", "--structure", action="store_true", help="include label structures for functions")
+parser.add_argument("-d", "--docs", action="store_true",
+                    help="Write generated documentation to output")
+parser.add_argument("-s", "--structure", action="store_true",
+                    help="Include label structures in documentation")
 
 args = parser.parse_args()
 if args.verbose: print('Args', args)
@@ -139,6 +163,10 @@ def prettify():
 
 
 # Normalise arguments
+if args.version:
+    print(__version__)
+    exit()
+
 if not args.file:
     parser.print_usage(stderr)
     print(CRED + 'error:' + CEND + ' no input file specified', file=stderr)
