@@ -6,4 +6,4 @@ python:
 script:
   - coverage run -m pytest
 after_success:
-  - scripts/report-coverage.sh
+  - bash scripts/report-coverage.sh

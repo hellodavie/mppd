@@ -9,9 +9,8 @@ if [ -n "$ENV" ]; then
   esac
 fi
 
-python -m coverage combine
-python -m coverage xml
-python -m coverage report -m
+coverage report -m
+coverage xml
 
 curl -S -L --connect-timeout 5 --retry 6 -s https://codecov.io/bash -o codecov.sh
 bash codecov.sh -Z -f coverage.xml
