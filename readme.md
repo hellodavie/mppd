@@ -19,10 +19,10 @@ By default, only the function named main will be transformed.
 Use the `--add-function` argument to add additional function labels to be processed.
 
 
-Variable placeholders `%variableName` in your assembly code are automatically replaced with registers.
-Temporary registers are preferred;
-saved registers are only used when there are no temporary registers remaining.
-Append the `.s` flag at the end of your variable name to force usage of a saved register, `%variableName.s`
+Variable placeholders, such as `%variableName`, in your assembly code are automatically replaced with registers.
+During the replacement, temporary registers are preferred;
+saved registers are only used when all temporary registers have been exhausted.
+Append the `.s` flag to the end of your variable name to force usage of a saved register, `%variableName.s`.
 
 Consider the following assembly code,
 ```asm
@@ -68,12 +68,69 @@ A list of variables and their respective registers will be output for your refer
 
 ## Documentation Generation
 Function documentation will be generated for you when the `--docs` parameter is specified.
+The resulting documentation is only written to the output file, and is not included in the prettified file.
+To save time from jumping back and forth between the source, prettified, and final versions,
+the documentation is also printed to stdout.
 
-#### Frame and clobbers
+### Frame and clobbers
 Documentation for registers can be very useful, especially when
 you need to save your registers on the stack.
-It would be nice to know which variables are being clobbered.
-Using the frame and clobbers 
+It would be nice to know which variables are being clobbered,
+so that you can store them in your function prologues.
+This function documentation will be output for the previously used example function
+with the `--clobbers` parameter,
+```asm
+#########################
+# count
+
+# Frame:      $ra, $s0
+# Uses:       $s0, $t0
+# Clobbers:   $t0
+```
+
+### Locals
+Assembly would be so much easier to read if you knew what variables each register corresponds to.
+Using the `--locals` will include the following comment in the output
+```asm
+# Locals:
+#       - 'max' in $s0
+#       - 'i' in $t0
+```
+This is especially useful if you want to debug the preprocessor,
+and want to know exactly what it's doing with your beloved placeholder variables. 
+
+### Structure
+The flow of your program can be easily identified when you include structure documentation.
+Note that you will have to manually indent and style the output.
+```asm
+# Structure:
+#       - count_i_init
+#       - count_i_cond
+#       - count_i_step
+#       - count_i_break
+```
+
+### Editing documentation
+Comments written immediately above function labels will be output above the associated function documentation.
+Should you wish to make any edits to the generated documentation,
+make note of them or manually create a backup,
+since any changes to the automatically generated function documentation *will be overridden*.
+Remember to restore your finishing touches and edits before submitting your work.
+
+## Version Control
+It is completely up to you how to manage generated files with your version control system.
+Since this tool makes back-ups of your code and generates multiple output files,
+depending on your supplied parameters, here is an example to ignore all generated files
+```gitignore
+### Mips Preprocessor
+# Backups
+*.bak
+# Prettified code
+*.pretty.s
+# Final output
+*.out.s
+```
+
 
 ## License
 Made by David Wu and Eric Holmstrom.
