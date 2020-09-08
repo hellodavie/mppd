@@ -4,11 +4,8 @@ import pytest
 # These tests do not contribute to coverage,
 # because coverage across sub-processes just didn't work
 
-def remove_whitespace(s):
-    return s.translate(s.maketrans('', '', ' \n\t\r'))
 
-
-def test_example_count(tmpdir, run_mips):
+def test_example_count(tmpdir, run_mips, util):
     in_name = "count.s"
     in_path = tmpdir.join(in_name)
     content = '''
@@ -31,8 +28,8 @@ count_i_break:
     run_result = run_mips(in_path, "-f count", "-o", out_path)
     assert run_result.ret == 0
     with out_path.open("r") as f:
-        result = remove_whitespace(f.read())
-        expected = remove_whitespace(
+        result = util.remove_whitespace(f.read())
+        expected = util.remove_whitespace(
             content
                 .replace('.s', '')
                 .replace('%max', '$s0')
@@ -42,7 +39,7 @@ count_i_break:
         print(result)
 
 
-def test_example_count_with_documentation(tmpdir, run_mips):
+def test_example_count_with_documentation(tmpdir, run_mips, util):
     in_name = "count.s"
     in_path = tmpdir.join(in_name)
     content = '''
@@ -65,12 +62,31 @@ count_i_break:
     run_result = run_mips(in_path, "-f count", "-o", out_path, "-d", "-s", "-l")
     assert run_result.ret == 0
     with out_path.open("r") as f:
-        result = remove_whitespace(f.read())
-        expected = remove_whitespace(
-            content
-                .replace('.s', '')
-                .replace('%max', '$s0')
-                .replace('%i', '$t0')
-        )
-        # assert result == expected
-        print(result)
+        result = util.remove_whitespace(f.read())
+    expected = util.remove_whitespace(
+        '''#########################
+        #count
+        #Frame:$ra,$s0
+        #Uses:$s0,$t0
+        #Clobbers:$t0
+        #Locals:
+        #-'max'in$s0
+        #-'i'in$t0
+        #Structure:
+        #-count_i_init
+        #-count_i_cond
+        #-count_i_step
+        #-count_i_break
+        count:
+        li$s0,10#intmax=10;
+        count_i_init:
+        li$t0,0#inti=0;
+        count_i_cond:
+        bge$t0,$s0,count_i_break#for(i<max)
+        #...
+        count_i_step:
+        addi$t0,$t0,1#i++;
+        count_i_break:
+        jr$ra#return;''')
+    assert result == expected
+    print(result)
