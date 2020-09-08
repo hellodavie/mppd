@@ -4,24 +4,25 @@ from shutil import copy2
 import operator
 
 parser = ArgumentParser()
-parser.add_argument("file", help="input readable assembly code from FILE", nargs='?',
-                    default="readable.s")
+parser.add_argument("file", help="input readable assembly code from FILE", nargs='?')
 parser.add_argument("-o", "--out", dest="output",
-                    help="write output to FILE", metavar="FILE",
-                    default="cellular.s")
-parser.add_argument("-V", "--verbose", type=int, nargs='?', const=1, help="logging level from 1 to 2, defaults if no number is supplied")
+                    help="write output to OUTPUT", metavar="OUTPUT")
+parser.add_argument("-V", "--verbose", type=int, nargs='?', const=1,
+                    help="logging level from 1 to 2, defaults if no number is supplied")
 
-parser.add_argument("-p", "--prettify", action="store_true")
+parser.add_argument("-p", "--prettify", action="store_true", help="reformat assembly code")
 parser.add_argument("-P", "--prettify-only", action="store_true", dest="prettify_only")
-parser.add_argument("-r", "--replace", action="store_true", help="in-place prettifier, replace input file")
+parser.add_argument("-r", "--replace", action="store_true", help="in-place prettify, replace input file")
 
-parser.add_argument("-f", "--add-function", action="append", dest="extra_functions", help="append function to functions list")
+parser.add_argument("-f", "--add-function", action="append", dest="extra_functions",
+                    help="append function to list of functions to process", metavar="FUNCTION_NAME")
 
 parser.add_argument("-s", "--structure", action="store_true", help="show label structures of functions")
 parser.add_argument("-i", "--identifiers", action="store_true", help="show identifiers and associated registers")
 parser.add_argument("-c", "--clobbers", action="store_true", help="show clobbered registers")
 parser.add_argument("-l", "--locals", action="store_true", help="show identifiers and associated registers")
-parser.add_argument("-d", "--docs", action="store_true", help="include auto-generated documentation")
+parser.add_argument("-d", "--docs", action="store_true", help="write auto-generated documentation to output file")
+
 args = parser.parse_args()
 if args.verbose: print('Args', args)
 
@@ -29,113 +30,118 @@ identifier_regex = r"%\w+"
 identifier_arg_regex = r"%\w+(\.\w+)?"
 labels_regex = r"^\w*:"
 
-CEND    = '\33[0m'
-CBLACK  = '\33[30m'
-CRED    = '\33[31m'
-CGREEN  = '\33[32m'
+CEND = '\33[0m'
+CBLACK = '\33[30m'
+CRED = '\33[31m'
+CGREEN = '\33[32m'
 CYELLOW = '\33[33m'
-CBLUE   = '\33[34m'
+CBLUE = '\33[34m'
 CVIOLET = '\33[35m'
-CBEIGE  = '\33[36m'
-CGREY   = '\33[90m'
+CBEIGE = '\33[36m'
+CGREY = '\33[90m'
+
+LOG_PRETTIFY_PREFIX = CBLUE + '[PRETTIFY]' + CEND
 
 NUM_TABS_AFTER_INSTRUCTION = 2
 NUM_TABS_BEFORE_COMMENT = 8
 
-def tabs(l, maximum):
-    return ('\t' * max(1, maximum - l // 4))
+
+def append_filename_suffix(filename, suffix):
+    path_parts = filename.rpartition('.')
+    return path_parts[0] + suffix + path_parts[1] + path_parts[2]
+
+
+def align_tabs(l, maximum):
+    return '\t' * max(1, maximum - l // 4)
+
 
 def prettify():
-    LOG_PRETTIFY_PREFIX = CBLUE + '[PRETTIFY]' + CEND
-    if args.replace:
-        backupfile = args.file + '.bak'
-        copy2(args.file, backupfile)
-        outfileName = args.file
-    else:
-        backupfile = args.file
-        filenameParts = args.file.rpartition('.')
-        outfileName = filenameParts[0] + '.pretty' + filenameParts[1] + filenameParts[2]
-
     # Instructions without a comma in signature
-    includeInstructions = ('jal', 'jr', 'b')
+    include_instructions = ('jal', 'jr', 'b')
 
-    with open(backupfile, 'r') as f:
-        outfile = open(outfileName, 'w')
-        lineNum = 1
-        linesChanged = 0
+    if args.replace:
+        path_backup = args.file + '.bak'
+        copy2(args.file, path_backup)
+        path_out = args.file
+    else:
+        path_backup = args.file
+        path_out = append_filename_suffix(args.file, '.pretty')
 
-        for line in f:
+    with open(path_backup, 'r') as file_input:
+        outfile = open(path_out, 'w')
+        lines_changed = 0
+
+        for line_num, line in enumerate(file_input, start=1):
             line = line.rstrip()
-            lineParts = line.partition('#')
-            stripped = lineParts[0].lstrip()
+            line_parts = line.partition('#')
+            stripped = line_parts[0].lstrip()
 
             # If line starts with a tab or four spaces
-            isIndented = False
-            if line:
-                if line[0] == '\t':
-                    isIndented = True
-                else:
-                    if args.verbose == 2: print(line[:3] == '    ', line[:4])
-                    if len(line) > 4 and line[:3].isspace():
-                        isIndented = True
+            is_indented: bool = line and (line[0] == '\t' or (len(line) > 4 and line[:3].isspace()))
 
             # Handle lines with instructions
-            if (isIndented and stripped and stripped[0] != '#' and 
-                (',' in line or any(stripped.startswith(x) for x in includeInstructions))):
+            if (is_indented and stripped and stripped[0] != '#' and
+                    (',' in line or any(stripped.startswith(x) for x in include_instructions))):
 
                 splitted = stripped.split()
-                if args.verbose: print(splitted)
-                lineOut = "\t"
+                if args.verbose:
+                    print(splitted)
+                line_out = "\t"
 
-                instructionLen = len(splitted[0]) 
-                if (instructionLen > 1 and instructionLen <= 4) or splitted[0] in includeInstructions:
-                    lineOut += splitted[0] + tabs(instructionLen, NUM_TABS_AFTER_INSTRUCTION)
+                instruction_len = len(splitted[0])
+                if (1 < instruction_len <= 4) or splitted[0] in include_instructions:
+                    line_out += splitted[0] + align_tabs(instruction_len, NUM_TABS_AFTER_INSTRUCTION)
 
                 length = len(splitted)
-                lenArgs = 0
+                len_args = 0
                 for i in range(1, length):
                     if splitted[i] == '#':
                         break
 
                     # Insert space after commas
-                    commaPos = splitted[i].find(',')
-                    if commaPos < len(splitted[i]) - 1:
+                    comma_pos = splitted[i].find(',')
+                    if comma_pos < len(splitted[i]) - 1:
                         splitted[i] = ', '.join(splitted[i].split(',')).rstrip()
 
-                    lineOut += splitted[i]
-                    lenArgs += len(splitted[i])
+                    line_out += splitted[i]
+                    len_args += len(splitted[i])
 
                     if i != length - 1:
-                        lineOut += ' '
-                        lenArgs += 1
+                        line_out += ' '
+                        len_args += 1
 
                 # If line has comment
-                if lineParts[1]:
-                    lineOut += tabs(lenArgs, NUM_TABS_BEFORE_COMMENT)
-                    lineOut += lineParts[1] + ' ' + lineParts[2].lstrip()
+                if line_parts[1]:
+                    line_out += align_tabs(len_args, NUM_TABS_BEFORE_COMMENT)
+                    line_out += line_parts[1] + ' ' + line_parts[2].lstrip()
 
-                if args.verbose: print(lineOut)
-                if args.verbose or lineOut != line:
-                    print(CGREY + "Line " + str(lineNum) + ": " + CEND + line)
-                    print(CVIOLET + "Line " + str(lineNum) + ": " + CEND + lineOut)
-                    linesChanged += 1
+                if args.verbose: print(line_out)
+                if args.verbose or line_out != line:
+                    print(CGREY + "Line " + str(line_num) + ": " + CEND + line)
+                    print(CVIOLET + "Line " + str(line_num) + ": " + CEND + line_out)
+                    lines_changed += 1
             else:
-                lineOut = line
+                line_out = line
 
-            outfile.write(lineOut + '\n')
-            lineNum += 1
+            outfile.write(line_out + '\n')
 
         outfile.close()
         print(LOG_PRETTIFY_PREFIX)
-        print("{} lines were changed.".format(linesChanged))
-        print("Output written to '{}'".format(outfileName))
-        if args.replace: print("Backup written to '{}'".format(backupfile))
+        print("{} lines were changed.".format(lines_changed))
+        print("Output written to '{}'".format(path_out))
+        if args.replace:
+            print("Backup written to '{}'".format(path_backup))
         print('')
-        return outfileName
+        return path_out
+
+
+if not args.output:
+    args.output = append_filename_suffix(args.file, '.out')
+
 
 if args.prettify or args.prettify_only:
     outfileName = prettify()
-    if args.prettify_only: 
+    if args.prettify_only:
         exit()
     elif outfileName:
         args.file = outfileName
@@ -181,14 +187,16 @@ def fix_comment_spacing(text):
                     print(CRED + "Line {}: there is no tab between the instruction and arguments.".format(lineNum))
                     print(CGREY + l.strip())
                     print(CEND)
-                    
+
                 # print(repr(l), len(s[0]))
         result += l + "\n"
         lineNum += 1
     return result
-    
+
+
 def first_startswith(strings, substring):
     return next((i for i, string in enumerate(strings) if string.startswith(substring)), -1)
+
 
 def create_identifiers_mapping(text):
     available_registers = ["$t{}".format(i) for i in range(10)]
@@ -214,14 +222,14 @@ def create_identifiers_mapping(text):
             print('Identifier {} has flag {}'.format(identifier, flag))
 
             if identifier in identifiers:
-                print(CRED+'Identifier {} declared before flag {}'.format(identifier, flag) + CEND)
+                print(CRED + 'Identifier {} declared before flag {}'.format(identifier, flag) + CEND)
             else:
                 identIndex = first_startswith(available_registers, '$s')
                 if identIndex != -1:
                     identifiers[identifier] = available_registers[identIndex]
                     available_registers.pop(identIndex)
                 else:
-                    print(CRED+'Identifier {} exceeded available $s registers'.format(identifier) + CEND)
+                    print(CRED + 'Identifier {} exceeded available $s registers'.format(identifier) + CEND)
             continue
 
         if args.verbose: idents.add(identifier)
@@ -234,10 +242,12 @@ def create_identifiers_mapping(text):
 
     return (identifiers, identifiersFlags)
 
+
 def perform_replacements(text, identifiers):
     for i, r in identifiers.items():
         text = text.replace(i, r)
     return text
+
 
 def extract_labels(text):
     labels = []
@@ -245,6 +255,7 @@ def extract_labels(text):
     for matchNum, match in enumerate(matches, start=1):
         labels.append(match.group())
     return labels
+
 
 available_registers = ["$t{}".format(i) for i in range(10)]
 # available_registers.extend("$s{}".format(i) for i in range(10))
@@ -345,7 +356,7 @@ for functionName in function_names:
             CLOBBERS_HEADING = 'Clobbers:'
 
             clobbers = set(usedIdents).difference(frameIdents, allSavedIdents)
-            
+
             comment += format(CLOBBERS_HEADING, headingPrefix)
             comment += ', '.join(sorted(clobbers))
             comment += '\n'
@@ -394,7 +405,7 @@ for functionName in function_names:
 
         for cLine in comment.splitlines():
             result_text += ('# ' if len(cLine) else '') + cLine + '\n'
-    
+
     result_text += f_text
 
 # text = perform_replacements(text, identifiers)
