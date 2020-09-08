@@ -324,7 +324,7 @@ function_names_set = {"main", "run_generation", "print_generation"}
 
 # Add extra functions from arguments
 if args.extra_functions:
-    function_names_set.update(args.extra_functions)
+    function_names_set.update([x.strip() for x in args.extra_functions])
 
 # Get function names in order
 function_names = []
@@ -333,7 +333,8 @@ for label in labels:
     if label in function_names_set:
         function_names.append(label)
 
-if args.verbose: print(function_names)
+if args.verbose:
+    print('functions', function_names)
 
 functions = dict(zip(function_names, [[] for x in range(len(function_names))]))
 
