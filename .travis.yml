@@ -3,7 +3,8 @@ python:
   - "3.6"
   - "3.7"
   - "3.8"
+  - "3.9"
 script:
-  - coverage run -m pytest
+  - coverage run -m pytest -v
 after_success:
   - bash scripts/report-coverage.sh
