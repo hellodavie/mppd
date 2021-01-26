@@ -472,7 +472,7 @@ def main():
 
     # Normalise arguments
     if args.version:
-        print(__version__)
+        print('v' + __version__)
         exit()
 
     print(__description__ + '\n' + __copyright__ + '\n')
