@@ -1,8 +1,19 @@
 import pytest
+from sys import executable
+
+from pathlib import Path
+
+SCRIPT_RELATIVE_PATH = "../mppd.py"
+SCRIPT_PATH = Path(__file__).parent / SCRIPT_RELATIVE_PATH
 
 
-# These tests do not contribute to coverage,
-# because coverage across sub-processes just didn't work
+@pytest.fixture
+def run_mips(testdir):
+    def do_run(*args):
+        args = [executable, SCRIPT_PATH] + list(args)
+        return testdir.run(*args)
+
+    return do_run
 
 
 def test_example_count(tmpdir, run_mips, util):
@@ -36,7 +47,6 @@ count_i_break:
                 .replace('%i', '$t0')
         )
         assert result == expected
-        print(result)
 
 
 def test_example_count_with_documentation(tmpdir, run_mips, util):
@@ -89,4 +99,3 @@ count_i_break:
         count_i_break:
         jr$ra#return;''')
     assert result == expected
-    print(result)
