@@ -2,15 +2,18 @@
 
 [![Build Status](https://travis-ci.com/hellodavie/mppd.svg?branch=master)](https://travis-ci.com/hellodavie/mppd)
 [![Coverage](https://codecov.io/gh/hellodavie/mppd/branch/master/graph/badge.svg)](https://codecov.io/gh/hellodavie/mppd)
+[![License](https://img.shields.io/github/license/hellodavie/mppd)](https://github.com/hellodavie/mppd/blob/master/license)
+[![Size](https://img.shields.io/github/size/hellodavie/mppd/mppd.py)](https://github.com/hellodavie/mppd/blob/master/mppd.py)
 
 An opinionated, but flexible, formatter and preprocessor for MIPS Assembly.
 Enforces style based on [BetterAssembly](https://wiki.jashankj.space/Scribblings/BetterAssembly/),
 which is the recommended style guide for COMP1521.
 
 ## tl;dr
+Download `mppd.py` and optionally add it to your path.
 Using all available features,
 ```shell
-$ python3 mips.py input.s -o output.s --prettify -i -s -l -d
+$ python3 mppd.py input.s -o output.s --prettify --identifiers --structure --locals --docs
 ```
 
 ## Prettify
@@ -25,14 +28,31 @@ Spaces are used in the final/preprocessed code, so that your code looks consiste
 
 The output filename will be suffixed with `.pretty`.
 When the `--replace` parameter is specified,
-a backup of your file will be produced and the output replaces your input file.
+a backup of your file will be produced and the formatted output replaces your original file.
 A summary of the changes will also be printed to stdout.
 
-## Preprocessor
+Your code goes from this mess,
+```asm
+main:
+    li $t0, 10 # int max = 10;
+my_label:
+    li    $t1,     0    # int i = 0;
+    jr   $ra
+```
+to this pretty thing,
+```asm
+main:
+    li      $t0, 10                     # int max = 10;
+my_label:
+    li      $t1, 0                      # int i = 0;
+    jr      $ra
+```
+
+## Preprocessing
 All code written below a function label, until either the next function label or the end of the file,
 will be considered as a single function.
 By default, only the function named main will be transformed.
-Use the `--add-function` argument to add additional function labels to be processed.
+Use the `--add-function` or `-f` arguments to add additional functions to be processed.
 
 
 Variable placeholders, such as `%variableName`, in your assembly code are automatically replaced with registers.
@@ -51,6 +71,7 @@ count_i_cond:
     # ...
 count_i_step:
     addi    %i, %i, 1                   # i++;
+    j count_i_cond
 count_i_break:
     jr      $ra                         # return;
 ```
@@ -71,6 +92,7 @@ count_i_cond:
     # ...
 count_i_step:
     addi    $t0, $t0, 1                 # i++;
+    j       count_i_cond
 count_i_break:
     jr      $ra                         # return;
 ```
@@ -150,5 +172,5 @@ depending on your supplied parameters, here is an example to ignore all generate
 
 ## License
 Made by David Wu and Eric Holmstrom.
-&copy; 2020 All Rights Reserved.
+&copy; All Rights Reserved.
 See LICENSE for further details. 
