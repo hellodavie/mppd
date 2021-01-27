@@ -5,7 +5,7 @@ from shutil import copy2
 from sys import stderr
 from textwrap import dedent
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 __description__ = 'A formatter and preprocessor for MIPS assembly.'
 __copyright__ = 'Copyright (c) 2020 David Wu and Eric Holmstrom'
 
